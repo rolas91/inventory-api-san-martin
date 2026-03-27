@@ -1,0 +1,51 @@
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: inventory-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-inventory_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-inventory_pass}
+      POSTGRES_DB: ${DB_NAME:-inventory_db}
+    ports:
+      - "5432:5432"          # solo para conectarte desde DBeaver / TablePlus
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-inventory_user} -d ${DB_NAME:-inventory_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── NestJS API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inventory-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy   # espera a que postgres pase el healthcheck
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: db                    # nombre del servicio = hostname en la red interna
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-inventory_user}
+      DB_PASSWORD: ${DB_PASSWORD:-inventory_pass}
+      DB_NAME: ${DB_NAME:-inventory_db}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
+      GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
