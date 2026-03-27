@@ -15,19 +15,21 @@ RUN npm prune --omit=dev
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
+# Crea usuario no-root antes de copiar archivos
 RUN apk add --no-cache tzdata \
  && addgroup -S appgroup \
  && adduser  -S appuser -G appgroup
 
 WORKDIR /app
 
-COPY --from=builder --chown=appuser:appgroup /app/dist         ./dist
-COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
-COPY --from=builder --chown=appuser:appgroup /app/package.json ./package.json
+# Copia archivos como root, luego cambia permisos
+COPY --from=builder /app/dist         ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY docker-entrypoint.sh             ./docker-entrypoint.sh
 
-# Entrypoint: espera DB → corre migraciones → inicia app
-COPY --chown=appuser:appgroup docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh \
+ && chown -R appuser:appgroup /app
 
 USER appuser
 
