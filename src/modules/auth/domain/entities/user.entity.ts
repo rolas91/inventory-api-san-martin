@@ -22,6 +22,9 @@ export class UserEntity {
   @Column({ length: 255 })
   password: string;
 
+  @Column({ type: 'varchar', length: 20, default: 'operario' })
+  rol: string;
+
   // ── Google OAuth fields ────────────────────────────────────────────────
   @Column({ name: 'google_id', type: 'varchar', nullable: true, unique: true, length: 255 })
   @Index()

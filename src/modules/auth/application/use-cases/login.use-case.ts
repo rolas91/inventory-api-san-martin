@@ -28,6 +28,7 @@ export class LoginUseCase {
       sub: user.id,
       codigoUser: user.codigoUser,
       nombre: user.nombre,
+      rol: user.rol ?? 'operario',
     };
 
     return {
