@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { InvFisicoEntity } from '../../domain/entities/inv-fisico.entity';
 import { IInvFisicoRepository } from '../../domain/interfaces/inv-fisico-repository.interface';
 
@@ -12,7 +12,7 @@ export class InvFisicoRepository implements IInvFisicoRepository {
     private readonly dataSource: DataSource,
   ) {}
 
-  async batchInsert(items: Partial<InvFisicoEntity>[]): Promise<InvFisicoEntity[]> {
+  async batchInsert(items: DeepPartial<InvFisicoEntity>[]): Promise<InvFisicoEntity[]> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
