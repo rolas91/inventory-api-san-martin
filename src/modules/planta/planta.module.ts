@@ -7,6 +7,7 @@ import { PlantaController } from './infrastructure/controllers/planta.controller
 import { GetProductsUseCase } from './application/use-cases/get-products.use-case';
 import { GetProductKilosUseCase } from './application/use-cases/get-product-kilos.use-case';
 import { CreateProductUseCase, CreateProductKilosUseCase } from './application/use-cases/create-product.use-case';
+import { ImportProductsCsvUseCase } from './application/use-cases/import-products-csv.use-case';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ProductEntity, ProductKilosEntity])],
@@ -17,6 +18,7 @@ import { CreateProductUseCase, CreateProductKilosUseCase } from './application/u
     GetProductKilosUseCase,
     CreateProductUseCase,
     CreateProductKilosUseCase,
+    ImportProductsCsvUseCase,
   ],
 })
 export class PlantaModule {}
