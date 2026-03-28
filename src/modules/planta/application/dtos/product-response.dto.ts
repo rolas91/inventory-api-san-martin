@@ -1,20 +1,28 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ProductResponseDto {
-  @ApiProperty({ example: 'PROD001', description: 'Código de producción' })
+  @ApiProperty({ example: 'CCI124' })
   codProduccion: string;
 
-  @ApiProperty({ example: 'Lomo de Cerdo', description: 'Nombre del producto' })
+  @ApiProperty({ example: 'COSTILLA CERDO INDIVIDUAL' })
   nombProducto: string;
 
-  @ApiProperty({ example: '12345', description: 'Número de producto' })
+  @ApiProperty({ example: '124' })
   numProducto: string;
 }
 
 export class ProductKilosResponseDto {
-  @ApiProperty({ example: 'PROD001', description: 'Código del producto' })
+  @ApiProperty({ example: 'CCI124' })
   codProducto: string;
 
-  @ApiProperty({ example: 'DEST_NIC', description: 'Destino relacionado' })
+  @ApiProperty({ example: '00' })
   destinoRel: string;
+}
+
+export class CreateProductFullResponseDto {
+  @ApiProperty({ description: 'Producto creado' })
+  producto: ProductResponseDto;
+
+  @ApiPropertyOptional({ description: 'Registros de kilos creados por destino', type: [ProductKilosResponseDto] })
+  kilos: ProductKilosResponseDto[];
 }

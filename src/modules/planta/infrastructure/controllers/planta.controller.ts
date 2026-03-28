@@ -28,7 +28,11 @@ import { GetProductKilosUseCase } from '../../application/use-cases/get-product-
 import { CreateProductUseCase, CreateProductKilosUseCase } from '../../application/use-cases/create-product.use-case';
 import { ImportProductsCsvUseCase } from '../../application/use-cases/import-products-csv.use-case';
 import { ImportProductsKilosCsvUseCase } from '../../application/use-cases/import-products-kilos-csv.use-case';
-import { ProductResponseDto, ProductKilosResponseDto } from '../../application/dtos/product-response.dto';
+import {
+  CreateProductFullResponseDto,
+  ProductKilosResponseDto,
+  ProductResponseDto,
+} from '../../application/dtos/product-response.dto';
 import { CreateProductDto, CreateProductKilosDto } from '../../application/dtos/create-product.dto';
 
 @ApiTags('Planta')
@@ -61,10 +65,16 @@ export class PlantaController {
   }
 
   @Post()
+  @Roles('admin', 'supervisor')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Crear producto de planta' })
-  @ApiResponse({ status: 201, type: ProductResponseDto })
-  createProduct(@Body() dto: CreateProductDto): Promise<ProductResponseDto> {
+  @ApiOperation({
+    summary: 'Crear producto [admin, supervisor]',
+    description:
+      'Crea el producto y, opcionalmente, registra sus destinos en productos_kilos. ' +
+      'Envía el campo `destinos` como array de strings para crear los registros de kilos en la misma petición.',
+  })
+  @ApiResponse({ status: 201, type: CreateProductFullResponseDto })
+  createProduct(@Body() dto: CreateProductDto): Promise<CreateProductFullResponseDto> {
     return this.createProductUseCase.execute(dto);
   }
 
