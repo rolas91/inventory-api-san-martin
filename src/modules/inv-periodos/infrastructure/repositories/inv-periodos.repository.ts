@@ -1,11 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { InvPeriodoEntity } from '../../domain/entities/inv-periodo.entity';
 import { InvConteoEntity } from '../../domain/entities/inv-conteo.entity';
 import { InvConteoDetalleEntity } from '../../domain/entities/inv-conteo-detalle.entity';
 import type { CreateInvPeriodoDto } from '../../application/dtos/inv-periodo.dto';
 import type { CreateInvConteoDto, InvConteoDetalleItemDto } from '../../application/dtos/inv-conteo.dto';
+import type {
+  SincronizarCompletoDto,
+  SincronizarCompletoResult,
+} from '../../application/dtos/sincronizar-completo.dto';
 
 @Injectable()
 export class InvPeriodosRepository {
@@ -16,6 +20,7 @@ export class InvPeriodosRepository {
     private readonly conteoRepo: Repository<InvConteoEntity>,
     @InjectRepository(InvConteoDetalleEntity)
     private readonly detalleRepo: Repository<InvConteoDetalleEntity>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ── Períodos ──────────────────────────────────────────────────────────────
@@ -143,5 +148,122 @@ export class InvPeriodosRepository {
     );
     await this.detalleRepo.save(entities);
     return { inserted: entities.length };
+  }
+
+  // ── Sincronización completa (app móvil) ───────────────────────────────────
+  /**
+   * Recibe período + conteo + detalles en una sola petición.
+   * Idempotente: si el par (nombre+fechaInicio+responsable+tipo) ya existe como
+   * período, se reutiliza. Si el par (periodoId+numeroConteo) ya existe como
+   * conteo, se reutiliza y NO se duplican detalles.
+   * Todo ocurre en una sola transacción.
+   */
+  async sincronizarCompleto(dto: SincronizarCompletoDto): Promise<SincronizarCompletoResult> {
+    return this.dataSource.transaction(async (em) => {
+      const periodoRepo  = em.getRepository(InvPeriodoEntity);
+      const conteoRepo   = em.getRepository(InvConteoEntity);
+      const detalleRepo  = em.getRepository(InvConteoDetalleEntity);
+
+      // ── 1. Período: buscar existente o crear ───────────────────────────
+      let periodo = await periodoRepo.findOne({
+        where: {
+          nombre:      dto.periodo.nombre,
+          fechaInicio: dto.periodo.fechaInicio,
+          responsable: dto.periodo.responsable,
+          tipo:        dto.periodo.tipo,
+        },
+      });
+
+      if (!periodo) {
+        periodo = await periodoRepo.save(
+          periodoRepo.create({
+            nombre:      dto.periodo.nombre,
+            tipo:        dto.periodo.tipo,
+            bodegaId:    dto.periodo.bodegaId ?? null,
+            fechaInicio: dto.periodo.fechaInicio,
+            fechaFin:    dto.periodo.fechaFin ?? null,
+            estado:      dto.periodo.estado,
+            responsable: dto.periodo.responsable,
+          }),
+        );
+      } else {
+        // Actualiza estado si avanzó
+        if (dto.periodo.estado !== periodo.estado) {
+          periodo.estado   = dto.periodo.estado;
+          periodo.fechaFin = dto.periodo.fechaFin ?? periodo.fechaFin;
+          periodo = await periodoRepo.save(periodo);
+        }
+      }
+
+      // ── 2. Conteo: buscar existente o crear ────────────────────────────
+      let conteo = await conteoRepo.findOne({
+        where: { periodoId: periodo.id, numeroConteo: dto.conteo.numeroConteo },
+      });
+
+      let detallesInsertados = 0;
+
+      if (!conteo) {
+        conteo = await conteoRepo.save(
+          conteoRepo.create({
+            periodoId:    periodo.id,
+            numeroConteo: dto.conteo.numeroConteo,
+            responsable:  dto.conteo.responsable,
+            estado:       dto.conteo.estado,
+            fecha:        dto.conteo.fecha,
+          }),
+        );
+
+        // ── 3. Detalles (solo si el conteo es nuevo) ──────────────────
+        if (dto.detalles.length > 0) {
+          const detalleEntities = dto.detalles.map((d) =>
+            detalleRepo.create({
+              conteoId:         conteo!.id,
+              codProducto:      d.codProducto,
+              nombProducto:     d.nombProducto,
+              ubicacionId:      d.ubicacionId ?? null,
+              pesoKilos:        d.pesoKilos,
+              pesoLibras:       d.pesoLibras,
+              bultos:           d.bultos,
+              fechaScan:        d.fechaScan.substring(0, 10),
+              consecutivosCaja: d.consecutivosCaja ?? '',
+            }),
+          );
+          await detalleRepo.save(detalleEntities);
+          detallesInsertados = detalleEntities.length;
+        }
+      } else {
+        // Conteo existente: actualizar estado si cambió
+        if (conteo.estado !== dto.conteo.estado) {
+          conteo.estado = dto.conteo.estado;
+          await conteoRepo.save(conteo);
+        }
+        // Detalles: verificar si ya hay registros (evitar duplicados)
+        const countExistente = await detalleRepo.count({ where: { conteoId: conteo.id } });
+        if (countExistente === 0 && dto.detalles.length > 0) {
+          const detalleEntities = dto.detalles.map((d) =>
+            detalleRepo.create({
+              conteoId:         conteo!.id,
+              codProducto:      d.codProducto,
+              nombProducto:     d.nombProducto,
+              ubicacionId:      d.ubicacionId ?? null,
+              pesoKilos:        d.pesoKilos,
+              pesoLibras:       d.pesoLibras,
+              bultos:           d.bultos,
+              fechaScan:        d.fechaScan.substring(0, 10),
+              consecutivosCaja: d.consecutivosCaja ?? '',
+            }),
+          );
+          await detalleRepo.save(detalleEntities);
+          detallesInsertados = detalleEntities.length;
+        }
+      }
+
+      return {
+        periodoId:          periodo.id,
+        conteoId:           conteo.id,
+        detallesInsertados,
+        message: `Sincronización exitosa. Período #${periodo.id}, Conteo #${conteo.id}.`,
+      };
+    });
   }
 }

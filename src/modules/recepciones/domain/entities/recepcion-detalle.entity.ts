@@ -31,6 +31,9 @@ export class RecepcionDetalleEntity {
   @Column({ name: 'fecha_scan', type: 'date' })
   fechaScan: string;
 
+  @Column({ name: 'consecutivos_caja', length: 500, default: '' })
+  consecutivosCaja: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

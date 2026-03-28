@@ -12,6 +12,7 @@ import {
   UpdateRecepcionEstadoDto,
   BatchRecepcionDetalleDto,
 } from '../../application/dtos/recepcion.dto';
+import { SincronizarCompletaDto } from '../../application/dtos/sincronizar-completa.dto';
 
 @ApiTags('Recepciones')
 @ApiBearerAuth()
@@ -71,5 +72,39 @@ export class RecepcionesController {
   @ApiResponse({ status: 200 })
   getResumen(@Param('recepcionId', ParseIntPipe) recepcionId: number) {
     return this.repo.getResumen(recepcionId);
+  }
+
+  /**
+   * Sincronización completa desde la app móvil.
+   * Persiste encabezado + detalles en una sola transacción atómica.
+   * Idempotente por `numero` de recepción.
+   */
+  @Post('sincronizar-completa')
+  @Roles('admin', 'supervisor', 'operario')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Recepción completa — sincronizar encabezado + detalles',
+    description:
+      '**Transacción atómica.** Busca recepción existente por `numero`. ' +
+      'Si no existe, la crea. Si ya existe, actualiza el estado y ' +
+      'reemplaza los detalles (delete + re-insert). ' +
+      'Si `numero` no se envía, se genera automáticamente.',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        recepcionId: 5,
+        numero: 'REC-20260527-001',
+        detallesInsertados: 18,
+        message: 'Recepción #REC-20260527-001 sincronizada correctamente.',
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Payload inválido' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  @ApiResponse({ status: 403, description: 'Sin permisos' })
+  sincronizarCompleta(@Body() dto: SincronizarCompletaDto) {
+    return this.repo.sincronizarCompleta(dto);
   }
 }

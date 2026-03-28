@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { RecepcionEntity } from '../../domain/entities/recepcion.entity';
 import { RecepcionDetalleEntity } from '../../domain/entities/recepcion-detalle.entity';
 import type { CreateRecepcionDto, RecepcionDetalleItemDto } from '../../application/dtos/recepcion.dto';
 import { TRANSICIONES } from '../../application/dtos/recepcion.dto';
+import type {
+  SincronizarCompletaDto,
+  SincronizarCompletaResult,
+} from '../../application/dtos/sincronizar-completa.dto';
 
 @Injectable()
 export class RecepcionesRepository {
@@ -13,6 +17,7 @@ export class RecepcionesRepository {
     private readonly recepcionRepo: Repository<RecepcionEntity>,
     @InjectRepository(RecepcionDetalleEntity)
     private readonly detalleRepo: Repository<RecepcionDetalleEntity>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ── Número correlativo REC-YYYYMMDD-NNN ───────────────────────────────────
@@ -120,5 +125,95 @@ export class RecepcionesRepository {
       totalKilos: Number(result?.totalKilos ?? 0),
       totalLibras: Number(result?.totalLibras ?? 0),
     };
+  }
+
+  // ── Sincronización completa (app móvil) ───────────────────────────────────
+  /**
+   * Recibe encabezado + detalles en una sola petición.
+   * Idempotencia por `numero` (campo único):
+   *  - Si la recepción NO existe → se crea con el número del cliente (o se genera).
+   *  - Si YA existe → se actualiza el estado y se reemplazan los detalles
+   *    (delete + re-insert dentro de la misma transacción).
+   */
+  async sincronizarCompleta(dto: SincronizarCompletaDto): Promise<SincronizarCompletaResult> {
+    return this.dataSource.transaction(async (em) => {
+      const recepcionRepo = em.getRepository(RecepcionEntity);
+      const detalleRepo   = em.getRepository(RecepcionDetalleEntity);
+
+      const r = dto.recepcion;
+
+      // ── 1. Buscar recepción existente por numero ───────────────────────
+      let recepcion: RecepcionEntity | null = null;
+      if (r.numero) {
+        recepcion = await recepcionRepo.findOne({ where: { numero: r.numero } });
+      }
+
+      if (!recepcion) {
+        // Generar número si el cliente no lo envió o no existe
+        const numero = r.numero ?? (await this.generarNumero(r.fecha));
+
+        recepcion = await recepcionRepo.save(
+          recepcionRepo.create({
+            numero,
+            proveedor:     r.proveedor,
+            bodegaId:      r.bodegaId ?? null,
+            ordenCompra:   r.ordenCompra ?? null,
+            fecha:         r.fecha,
+            estado:        r.estado,
+            observaciones: r.observaciones ?? null,
+            responsable:   r.responsable,
+          }),
+        );
+
+        // Insertar detalles (recepción nueva)
+        if (dto.detalles.length > 0) {
+          const entities = dto.detalles.map((d) =>
+            detalleRepo.create({
+              recepcionId:      recepcion!.id,
+              codProducto:      d.codProducto,
+              nombProducto:     d.nombProducto,
+              cantidadRecibida: d.cantidadRecibida,
+              pesoKilos:        d.pesoKilos,
+              pesoLibras:       d.pesoLibras,
+              fechaScan:        d.fechaScan.substring(0, 10),
+              consecutivosCaja: d.consecutivosCaja ?? '',
+            }),
+          );
+          await detalleRepo.save(entities);
+        }
+      } else {
+        // Recepción existente: actualizar estado si avanzó
+        const permitidos = TRANSICIONES[recepcion.estado] ?? [];
+        if (r.estado !== recepcion.estado && permitidos.includes(r.estado)) {
+          recepcion.estado = r.estado;
+          recepcion = await recepcionRepo.save(recepcion);
+        }
+
+        // Reemplazar detalles: delete + re-insert (idempotente ante reintento)
+        await detalleRepo.delete({ recepcionId: recepcion.id });
+        if (dto.detalles.length > 0) {
+          const entities = dto.detalles.map((d) =>
+            detalleRepo.create({
+              recepcionId:      recepcion!.id,
+              codProducto:      d.codProducto,
+              nombProducto:     d.nombProducto,
+              cantidadRecibida: d.cantidadRecibida,
+              pesoKilos:        d.pesoKilos,
+              pesoLibras:       d.pesoLibras,
+              fechaScan:        d.fechaScan.substring(0, 10),
+              consecutivosCaja: d.consecutivosCaja ?? '',
+            }),
+          );
+          await detalleRepo.save(entities);
+        }
+      }
+
+      return {
+        recepcionId:       recepcion.id,
+        numero:            recepcion.numero,
+        detallesInsertados: dto.detalles.length,
+        message: `Recepción #${recepcion.numero} sincronizada correctamente.`,
+      };
+    });
   }
 }
