@@ -27,6 +27,7 @@ import { GetProductsUseCase } from '../../application/use-cases/get-products.use
 import { GetProductKilosUseCase } from '../../application/use-cases/get-product-kilos.use-case';
 import { CreateProductUseCase, CreateProductKilosUseCase } from '../../application/use-cases/create-product.use-case';
 import { ImportProductsCsvUseCase } from '../../application/use-cases/import-products-csv.use-case';
+import { ImportProductsKilosCsvUseCase } from '../../application/use-cases/import-products-kilos-csv.use-case';
 import { ProductResponseDto, ProductKilosResponseDto } from '../../application/dtos/product-response.dto';
 import { CreateProductDto, CreateProductKilosDto } from '../../application/dtos/create-product.dto';
 
@@ -42,6 +43,7 @@ export class PlantaController {
     private readonly createProductUseCase: CreateProductUseCase,
     private readonly createProductKilosUseCase: CreateProductKilosUseCase,
     private readonly importProductsCsvUseCase: ImportProductsCsvUseCase,
+    private readonly importProductsKilosCsvUseCase: ImportProductsKilosCsvUseCase,
   ) {}
 
   @Get()
@@ -129,5 +131,58 @@ export class PlantaController {
       throw new Error('No se recibió ningún archivo');
     }
     return this.importProductsCsvUseCase.execute(file.buffer);
+  }
+
+  /**
+   * Importación masiva de productos-kilos desde CSV.
+   *
+   * El CSV debe tener las columnas: codProducto, destinoRel
+   * La unicidad se determina por el par (codProducto + destinoRel).
+   *  - Par NO existe  → INSERT
+   *  - Par YA existe y estaba inactivo → reactiva (UPDATE isActive=true)
+   *  - Par YA existe y activo → skipped
+   */
+  @Post('import-products-kilos-csv')
+  @Roles('admin', 'supervisor')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.originalname.match(/\.(csv|txt)$/i)) {
+          return cb(new Error('Solo se aceptan archivos .csv o .txt'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Archivo CSV con columnas: codProducto, destinoRel',
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+      required: ['file'],
+    },
+  })
+  @ApiOperation({
+    summary: 'Importar productos-kilos desde CSV [admin, supervisor]',
+    description:
+      'Columnas requeridas: **codProducto**, **destinoRel**. ' +
+      'Unicidad por par (codProducto + destinoRel).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Resultado de la importación',
+    schema: {
+      example: { total: 50, inserted: 40, updated: 5, skipped: 5, errors: [] },
+    },
+  })
+  importKilosCsv(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new Error('No se recibió ningún archivo');
+    }
+    return this.importProductsKilosCsvUseCase.execute(file.buffer);
   }
 }
