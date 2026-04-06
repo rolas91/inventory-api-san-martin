@@ -30,6 +30,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@alexssmusica/node-printer": "^0.8.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
@@ -46,6 +47,7 @@
     "google-auth-library": "^10.6.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf-to-printer": "^5.7.0",
     "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

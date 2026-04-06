@@ -10,6 +10,7 @@ import { InvFisicoModule } from './modules/inv-fisico/inv-fisico.module';
 import { BodegasModule } from './modules/bodegas/bodegas.module';
 import { InvPeriodosModule } from './modules/inv-periodos/inv-periodos.module';
 import { RecepcionesModule } from './modules/recepciones/recepciones.module';
+import { PrintingModule } from './modules/printing/printing.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { RecepcionesModule } from './modules/recepciones/recepciones.module';
     BodegasModule,
     InvPeriodosModule,
     RecepcionesModule,
+    PrintingModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
