@@ -20,9 +20,10 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { PERMISSIONS } from '../../../../common/auth/permissions';
+import { Permissions } from '../../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
-import { Roles } from '../../../../common/decorators/roles.decorator';
 import { GetProductsUseCase } from '../../application/use-cases/get-products.use-case';
 import { GetProductKilosUseCase } from '../../application/use-cases/get-product-kilos.use-case';
 import { CreateProductUseCase, CreateProductKilosUseCase } from '../../application/use-cases/create-product.use-case';
@@ -65,7 +66,7 @@ export class PlantaController {
   }
 
   @Post()
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.PLANTA_CREATE_PRODUCT)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Crear producto [admin, supervisor]',
@@ -98,7 +99,7 @@ export class PlantaController {
    *  - Si no hubo cambios → skipped.
    */
   @Post('import-products-csv')
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.PLANTA_IMPORT_PRODUCTS)
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('file', {
@@ -153,7 +154,7 @@ export class PlantaController {
    *  - Par YA existe y activo → skipped
    */
   @Post('import-products-kilos-csv')
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.PLANTA_IMPORT_PRODUCTS_KILOS)
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('file', {

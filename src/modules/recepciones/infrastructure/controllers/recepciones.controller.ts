@@ -3,9 +3,10 @@ import {
   Param, ParseIntPipe, Post, Put, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { PERMISSIONS } from '../../../../common/auth/permissions';
+import { Permissions } from '../../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
-import { Roles } from '../../../../common/decorators/roles.decorator';
 import { RecepcionesRepository } from '../repositories/recepciones.repository';
 import {
   CreateRecepcionDto,
@@ -29,7 +30,7 @@ export class RecepcionesController {
   }
 
   @Post()
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.RECEPCIONES_CREATE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear recepción [admin, supervisor] — numero generado automáticamente' })
   @ApiResponse({ status: 201 })
@@ -38,7 +39,7 @@ export class RecepcionesController {
   }
 
   @Put(':id/estado')
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.RECEPCIONES_UPDATE_ESTADO)
   @ApiOperation({ summary: 'Cambiar estado recepción [admin, supervisor] — solo avanzar' })
   @ApiResponse({ status: 200 })
   updateEstado(
@@ -56,7 +57,7 @@ export class RecepcionesController {
   }
 
   @Post(':recepcionId/detalle/batch')
-  @Roles('admin', 'supervisor', 'operario')
+  @Permissions(PERMISSIONS.RECEPCIONES_BATCH_DETALLE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Insertar batch de detalle (solo en estado borrador)' })
   @ApiResponse({ status: 201 })
@@ -80,7 +81,7 @@ export class RecepcionesController {
    * Idempotente por `numero` de recepción.
    */
   @Post('sincronizar-completa')
-  @Roles('admin', 'supervisor', 'operario')
+  @Permissions(PERMISSIONS.RECEPCIONES_SYNC_COMPLETA)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Recepción completa — sincronizar encabezado + detalles',

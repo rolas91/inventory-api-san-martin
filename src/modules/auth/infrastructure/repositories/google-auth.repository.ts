@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../../domain/entities/user.entity';
+import { RoleEntity } from '../../domain/entities/role.entity';
 import {
   GoogleUserData,
   IGoogleAuthRepository,
@@ -12,14 +13,16 @@ export class GoogleAuthRepository implements IGoogleAuthRepository {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(RoleEntity)
+    private readonly roleRepo: Repository<RoleEntity>,
   ) {}
 
   findByGoogleId(googleId: string): Promise<UserEntity | null> {
-    return this.userRepo.findOne({ where: { googleId, isActive: true } });
+    return this.userRepo.findOne({ where: { googleId, isActive: true }, relations: { role: true } });
   }
 
   findByEmail(email: string): Promise<UserEntity | null> {
-    return this.userRepo.findOne({ where: { email, isActive: true } });
+    return this.userRepo.findOne({ where: { email, isActive: true }, relations: { role: true } });
   }
 
   async upsertGoogleUser(data: GoogleUserData): Promise<UserEntity> {
@@ -38,10 +41,15 @@ export class GoogleAuthRepository implements IGoogleAuthRepository {
     }
 
     // Nuevo usuario via Google: codigoUser = email (identificador interno)
+    const operarioRole = await this.roleRepo.findOne({ where: { name: 'operario', isActive: true } });
+    if (!operarioRole) {
+      throw new Error('No existe el rol base "operario"');
+    }
     const newUser = this.userRepo.create({
       codigoUser: data.email,
       nombre: data.name,
       password: '',          // Sin contraseña; login solo vía Google
+      roleId: operarioRole.id,
       googleId: data.googleId,
       email: data.email,
       picture: data.picture,

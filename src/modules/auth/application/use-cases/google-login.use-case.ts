@@ -53,7 +53,7 @@ export class GoogleLoginUseCase {
       sub: user.id,
       codigoUser: user.codigoUser,
       nombre: user.nombre,
-      rol: user.rol ?? 'operario',
+      rol: user.role?.name ?? 'operario',
     });
 
     return {

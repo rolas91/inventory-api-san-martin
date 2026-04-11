@@ -4,6 +4,7 @@ dotenv.config();
 
 import AppDataSource from '../data-source';
 import { UserEntity } from '../../modules/auth/domain/entities/user.entity';
+import { RoleEntity } from '../../modules/auth/domain/entities/role.entity';
 import { ProductEntity } from '../../modules/planta/domain/entities/product.entity';
 import { ProductKilosEntity } from '../../modules/planta/domain/entities/product-kilos.entity';
 import { getUsersSeedData } from './data/users.seed';
@@ -24,12 +25,19 @@ async function runSeed() {
     // ── Users ──────────────────────────────────────────────────────────────
     console.log('\n👤 Seeding users...');
     const userRepo = AppDataSource.getRepository(UserEntity);
+    const roleRepo = AppDataSource.getRepository(RoleEntity);
     const usersData = await getUsersSeedData();
 
     for (const data of usersData) {
       const exists = await userRepo.findOne({ where: { codigoUser: data.codigoUser } });
       if (!exists) {
-        await userRepo.save(userRepo.create(data));
+        const roleName = data.role ?? 'operario';
+        const role = await roleRepo.findOne({ where: { name: roleName, isActive: true } });
+        if (!role) {
+          throw new Error(`Rol no encontrado para seed de usuario: ${roleName}`);
+        }
+        const { role: _role, ...userData } = data;
+        await userRepo.save(userRepo.create({ ...userData, roleId: role.id }));
         console.log(`   ✔ Usuario creado: ${data.codigoUser}`);
       } else {
         console.log(`   ⏭  Usuario ya existe: ${data.codigoUser}`);

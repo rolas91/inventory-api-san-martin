@@ -3,9 +3,10 @@ import {
   Param, ParseIntPipe, Post, Put, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { PERMISSIONS } from '../../../../common/auth/permissions';
+import { Permissions } from '../../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
-import { Roles } from '../../../../common/decorators/roles.decorator';
 import { BodegasRepository } from '../repositories/bodegas.repository';
 import { BodegaResponseDto, CreateBodegaDto, UpdateBodegaDto } from '../../application/dtos/bodega.dto';
 
@@ -24,7 +25,7 @@ export class BodegasController {
   }
 
   @Post()
-  @Roles('admin')
+  @Permissions(PERMISSIONS.BODEGAS_CREATE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear bodega [admin]' })
   @ApiResponse({ status: 201, type: BodegaResponseDto })
@@ -33,7 +34,7 @@ export class BodegasController {
   }
 
   @Put(':id')
-  @Roles('admin')
+  @Permissions(PERMISSIONS.BODEGAS_UPDATE)
   @ApiOperation({ summary: 'Actualizar bodega [admin]' })
   @ApiResponse({ status: 200, type: BodegaResponseDto })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBodegaDto) {
@@ -41,7 +42,7 @@ export class BodegasController {
   }
 
   @Delete(':id')
-  @Roles('admin')
+  @Permissions(PERMISSIONS.BODEGAS_DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete bodega [admin]' })
   @ApiResponse({ status: 204 })

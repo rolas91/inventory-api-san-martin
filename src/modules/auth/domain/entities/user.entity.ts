@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { RoleEntity } from './role.entity';
 
 @Entity('users')
 export class UserEntity {
@@ -22,8 +25,12 @@ export class UserEntity {
   @Column({ length: 255 })
   password: string;
 
-  @Column({ type: 'varchar', length: 20, default: 'operario' })
-  rol: string;
+  @Column({ name: 'role_id', type: 'int' })
+  roleId: number;
+
+  @ManyToOne(() => RoleEntity, { nullable: false, eager: true })
+  @JoinColumn({ name: 'role_id' })
+  role: RoleEntity;
 
   // ── Google OAuth fields ────────────────────────────────────────────────
   @Column({ name: 'google_id', type: 'varchar', nullable: true, unique: true, length: 255 })

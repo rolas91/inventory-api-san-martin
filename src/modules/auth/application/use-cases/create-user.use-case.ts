@@ -1,23 +1,13 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthRepository } from '../../infrastructure/repositories/auth.repository';
-import { AuthResponseDto } from '../dtos/auth-response.dto';
-import { JwtPayload } from '../../domain/interfaces/jwt-payload.interface';
+import { UserListItemDto } from '../dtos/user-management.dto';
 
 @Injectable()
-export class RegisterUseCase {
-  constructor(
-    private readonly authRepository: AuthRepository,
-    private readonly jwtService: JwtService,
-  ) {}
+export class CreateUserUseCase {
+  constructor(private readonly authRepository: AuthRepository) {}
 
-  async execute(
-    nombre: string,
-    codigoUser: string,
-    password: string,
-    rol = 'operario',
-  ): Promise<AuthResponseDto> {
+  async execute(nombre: string, codigoUser: string, password: string, rol = 'operario'): Promise<UserListItemDto> {
     const existingUser = await this.authRepository.findByCodigoUser(codigoUser);
     if (existingUser) {
       throw new ConflictException('El usuario ya existe');
@@ -31,17 +21,12 @@ export class RegisterUseCase {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await this.authRepository.create(codigoUser, nombre, hashedPassword, normalizedRole);
-
-    const payload: JwtPayload = {
-      sub: user.id,
+    return {
+      id: user.id,
       codigoUser: user.codigoUser,
       nombre: user.nombre,
       rol: this.authRepository.getUserRoleName(user),
-    };
-
-    return {
-      user: { codigoUser: user.codigoUser, nombre: user.nombre },
-      token: this.jwtService.sign(payload),
+      isActive: !!user.isActive,
     };
   }
 }

@@ -3,9 +3,10 @@ import {
   Param, ParseIntPipe, Post, Put, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { PERMISSIONS } from '../../../../common/auth/permissions';
+import { Permissions } from '../../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
-import { Roles } from '../../../../common/decorators/roles.decorator';
 import { InvPeriodosRepository } from '../repositories/inv-periodos.repository';
 import { CreateInvPeriodoDto, UpdatePeriodoEstadoDto } from '../../application/dtos/inv-periodo.dto';
 import { CreateInvConteoDto } from '../../application/dtos/inv-conteo.dto';
@@ -25,7 +26,7 @@ export class InvPeriodosController {
   }
 
   @Post()
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.INV_PERIODOS_CREATE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear período [admin, supervisor]' })
   @ApiResponse({ status: 201 })
@@ -34,7 +35,7 @@ export class InvPeriodosController {
   }
 
   @Put(':id/estado')
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.INV_PERIODOS_UPDATE_ESTADO)
   @ApiOperation({ summary: 'Cambiar estado del período [admin, supervisor]' })
   @ApiResponse({ status: 200 })
   updateEstado(
@@ -52,7 +53,7 @@ export class InvPeriodosController {
   }
 
   @Post(':periodoId/conteos')
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.INV_PERIODOS_CREATE_CONTEO)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear conteo en un período [admin, supervisor]' })
   @ApiResponse({ status: 201 })

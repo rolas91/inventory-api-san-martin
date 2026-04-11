@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,6 +8,7 @@ import {
   HttpStatus,
   ParseArrayPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +24,7 @@ import { DeleteAllInvFisicoUseCase } from '../../application/use-cases/delete-al
 import { InvFisicoItemDto } from '../../application/dtos/inv-fisico-batch.dto';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../../auth/domain/interfaces/jwt-payload.interface';
+import { InvFisicoRepository } from '../repositories/inv-fisico.repository';
 
 @ApiTags('InvFisico')
 @ApiBearerAuth()
@@ -31,6 +34,7 @@ export class InvFisicoController {
   constructor(
     private readonly batchUseCase: BatchInvFisicoUseCase,
     private readonly deleteAllUseCase: DeleteAllInvFisicoUseCase,
+    private readonly invFisicoRepo: InvFisicoRepository,
   ) {}
 
   /**
@@ -64,8 +68,37 @@ export class InvFisicoController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Health-check del módulo InvFisico' })
-  getAll() {
-    return { message: 'Use POST /InvFisico/batch to submit records' };
+  @ApiOperation({ summary: 'Rutas del módulo InvFisico' })
+  routesInfo() {
+    return {
+      encabezados: 'GET /InvFisico/encabezados',
+      lineas: 'GET /InvFisico/lineas?invFisicoId= (opcional)',
+      batch: 'POST /InvFisico/batch',
+    };
+  }
+
+  @Get('encabezados')
+  @ApiOperation({ summary: 'Listar cabeceras de inventario físico (con conteo de detalles)' })
+  @ApiResponse({ status: 200 })
+  getEncabezados() {
+    return this.invFisicoRepo.findAllHeaders();
+  }
+
+  @Get('lineas')
+  @ApiOperation({
+    summary: 'Líneas planas: cabecera + detalle por fila (escaneo / detalle de un inventario)',
+    description:
+      'Sin `invFisicoId` devuelve todas las líneas. Con `invFisicoId` solo las de esa cabecera.',
+  })
+  @ApiResponse({ status: 200 })
+  getLineas(@Query('invFisicoId') invFisicoIdRaw?: string) {
+    if (invFisicoIdRaw === undefined || invFisicoIdRaw === '') {
+      return this.invFisicoRepo.findFlattenedLineas();
+    }
+    const id = Number.parseInt(invFisicoIdRaw, 10);
+    if (Number.isNaN(id)) {
+      throw new BadRequestException('invFisicoId debe ser numérico');
+    }
+    return this.invFisicoRepo.findFlattenedLineas(id);
   }
 }

@@ -3,9 +3,10 @@ import {
   Param, ParseIntPipe, Post, Put, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { PERMISSIONS } from '../../../../common/auth/permissions';
+import { Permissions } from '../../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
-import { Roles } from '../../../../common/decorators/roles.decorator';
 import { InvPeriodosRepository } from '../repositories/inv-periodos.repository';
 import { UpdateConteoEstadoDto, BatchInvConteoDetalleDto } from '../../application/dtos/inv-conteo.dto';
 import { SincronizarCompletoDto } from '../../application/dtos/sincronizar-completo.dto';
@@ -18,7 +19,7 @@ export class InvConteosController {
   constructor(private readonly repo: InvPeriodosRepository) {}
 
   @Put(':id/estado')
-  @Roles('admin', 'supervisor')
+  @Permissions(PERMISSIONS.INV_CONTEOS_UPDATE_ESTADO)
   @ApiOperation({ summary: 'Cambiar estado del conteo [admin, supervisor]' })
   @ApiResponse({ status: 200 })
   updateEstado(
@@ -36,7 +37,7 @@ export class InvConteosController {
   }
 
   @Post(':conteoId/detalle/batch')
-  @Roles('admin', 'supervisor', 'operario')
+  @Permissions(PERMISSIONS.INV_CONTEOS_BATCH_DETALLE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Insertar batch de detalle en un conteo' })
   @ApiResponse({ status: 201 })
@@ -53,7 +54,7 @@ export class InvConteosController {
    * Idempotente: reintentos con los mismos datos no duplican registros.
    */
   @Post('sincronizar-completo')
-  @Roles('admin', 'supervisor', 'operario')
+  @Permissions(PERMISSIONS.INV_CONTEOS_SYNC_COMPLETO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Inventario cíclico — sincronizar período + conteo + detalles',

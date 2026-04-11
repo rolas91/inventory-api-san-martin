@@ -3,9 +3,10 @@ import {
   Param, ParseIntPipe, Post, Put, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { PERMISSIONS } from '../../../../common/auth/permissions';
+import { Permissions } from '../../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
-import { Roles } from '../../../../common/decorators/roles.decorator';
 import { BodegasRepository } from '../repositories/bodegas.repository';
 import { UbicacionResponseDto, CreateUbicacionDto, UpdateUbicacionDto } from '../../application/dtos/ubicacion.dto';
 
@@ -24,7 +25,7 @@ export class UbicacionesController {
   }
 
   @Post()
-  @Roles('admin')
+  @Permissions(PERMISSIONS.UBICACIONES_CREATE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear ubicación [admin]' })
   @ApiResponse({ status: 201, type: UbicacionResponseDto })
@@ -33,7 +34,7 @@ export class UbicacionesController {
   }
 
   @Put(':id')
-  @Roles('admin')
+  @Permissions(PERMISSIONS.UBICACIONES_UPDATE)
   @ApiOperation({ summary: 'Actualizar ubicación [admin]' })
   @ApiResponse({ status: 200, type: UbicacionResponseDto })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUbicacionDto) {
@@ -41,7 +42,7 @@ export class UbicacionesController {
   }
 
   @Delete(':id')
-  @Roles('admin')
+  @Permissions(PERMISSIONS.UBICACIONES_DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete ubicación [admin]' })
   @ApiResponse({ status: 204 })
