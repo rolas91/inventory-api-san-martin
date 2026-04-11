@@ -83,86 +83,23 @@ export class PrinterService {
   }
 
   async getPrintersNodePrinterPoc(): Promise<{ name: string }[]> {
-    try {
-      const printerModule = await this.getNodePrinterModule();
-      const printers = printerModule.getPrinters();
-      const names = (Array.isArray(printers) ? printers : [])
-        .map((p: { name?: string }) => p?.name?.trim())
-        .filter((name: string | undefined): name is string => !!name);
-
-      if (names.length === 0) {
-        throw new NotFoundException('No se encontraron impresoras instaladas (POC node-printer).');
-      }
-
-      return names.map((name) => ({ name }));
-    } catch (ex) {
-      const detail = ex instanceof Error ? ex.message : String(ex);
-      this.logger.error(`POC node-printer (list) fallo: ${detail}`);
-      throw new InternalServerErrorException(`POC node-printer fallo al listar impresoras: ${detail}`);
-    }
+    // @alexssmusica/node-printer deshabilitado (incompatibilidad / build nativo). Misma fuente que GET printer/list.
+    return this.getPrinters();
   }
 
   async printTicketNodePrinterPoc(
     file: Express.Multer.File,
     printerName: string,
   ): Promise<{ message: string }> {
-    if (!file || !file.buffer || file.buffer.length === 0) {
-      throw new BadRequestException('No se envio ningun archivo.');
-    }
-    if (!printerName || printerName.trim().length === 0) {
-      throw new BadRequestException('No se ingreso nombre de impresora.');
-    }
-
-    const printerModule = await this.getNodePrinterModule();
-    const rawPrinters = printerModule.getPrinters();
-    const installedNames = (Array.isArray(rawPrinters) ? rawPrinters : [])
-      .map((p: { name?: string }) => p?.name?.trim())
-      .filter((name: string | undefined): name is string => !!name);
-
-    const resolvedPrinterName = this.resolvePrinterName(printerName, installedNames);
-    if (!resolvedPrinterName) {
-      throw new NotFoundException(`La impresora '${printerName}' no esta instalada en este equipo (POC).`);
-    }
-
-    try {
-      await new Promise<void>((resolve, reject) => {
-        printerModule.printDirect({
-          data: file.buffer,
-          printer: resolvedPrinterName,
-          docname: file.originalname || 'poc-node-printer.pdf',
-          type: 'PDF',
-          success: () => resolve(),
-          error: (error: Error) => reject(error),
-        });
-      });
-
-      return { message: 'POC node-printer: PDF enviado con printDirect (type PDF).' };
-    } catch (ex) {
-      const detail = ex instanceof Error ? ex.message : String(ex);
-      this.logger.warn(`POC node-printer printDirect fallo: ${detail}. Intentando fallback Sumatra.`);
-
-      const tempFilePath = path.join(os.tmpdir(), `${randomUUID()}.pdf`);
-      await fs.promises.writeFile(tempFilePath, file.buffer);
-      try {
-        await this.printWithSumatra(tempFilePath, resolvedPrinterName);
-        return {
-          message:
-            'POC node-printer: printDirect no pudo completar; se imprimio con fallback Sumatra.',
-        };
-      } catch (sumatraEx) {
-        const sumatraDetail = sumatraEx instanceof Error ? sumatraEx.message : String(sumatraEx);
-        this.logger.error(`POC fallback Sumatra fallo: ${sumatraDetail}`);
-        throw new InternalServerErrorException(
-          `POC node-printer fallo (printDirect): ${detail}. Fallback Sumatra: ${sumatraDetail}`,
-        );
-      } finally {
-        try {
-          await fs.promises.unlink(tempFilePath);
-        } catch {
-          // no-op
-        }
-      }
-    }
+    // @alexssmusica/node-printer deshabilitado (import dinámico y printDirect). Misma lógica que POST printer/print-ticket.
+    //
+    // Código anterior (referencia, no ejecutar):
+    // const printerModule = await this.getNodePrinterModule();
+    // printerModule.printDirect({ data: file.buffer, printer: resolvedPrinterName, type: 'PDF', ... });
+    const result = await this.printTicket(file, printerName);
+    return {
+      message: `${result.message} (POC: sin node-printer; impresión vía flujo estándar.)`,
+    };
   }
 
   private async getPrinterNames(): Promise<string[]> {
@@ -238,49 +175,20 @@ export class PrinterService {
     );
   }
 
-  private async getNodePrinterModule(): Promise<{
-    getPrinters: () => Array<{ name?: string }>;
-    printDirect: (options: {
-      data: string | Buffer;
-      printer?: string;
-      docname?: string;
-      type?: 'RAW' | 'TEXT' | 'PDF' | 'JPEG' | 'POSTSCRIPT' | 'COMMAND' | 'AUTO';
-      success?: (jobId: string) => void;
-      error?: (err: Error) => void;
-    }) => void;
-  }> {
-    try {
-      const moduleRef = await import('@alexssmusica/node-printer');
-      return (moduleRef as { default?: unknown }).default
-        ? ((moduleRef as { default: unknown }).default as {
-            getPrinters: () => Array<{ name?: string }>;
-            printDirect: (options: {
-              data: string | Buffer;
-              printer?: string;
-              docname?: string;
-              type?: 'RAW' | 'TEXT' | 'PDF' | 'JPEG' | 'POSTSCRIPT' | 'COMMAND' | 'AUTO';
-              success?: (jobId: string) => void;
-              error?: (err: Error) => void;
-            }) => void;
-          })
-        : (moduleRef as unknown as {
-            getPrinters: () => Array<{ name?: string }>;
-            printDirect: (options: {
-              data: string | Buffer;
-              printer?: string;
-              docname?: string;
-              type?: 'RAW' | 'TEXT' | 'PDF' | 'JPEG' | 'POSTSCRIPT' | 'COMMAND' | 'AUTO';
-              success?: (jobId: string) => void;
-              error?: (err: Error) => void;
-            }) => void;
-          });
-    } catch (ex) {
-      const detail = ex instanceof Error ? ex.message : String(ex);
-      throw new Error(
-        `No se pudo cargar @alexssmusica/node-printer. Verifica instalacion/build nativo. Detalle: ${detail}`,
-      );
-    }
-  }
+  /*
+  // ── getNodePrinterModule — DESHABILITADO: @alexssmusica/node-printer (compatibilidad / addon nativo)
+  // private async getNodePrinterModule(): Promise<{ ... }> {
+  //   try {
+  //     const moduleRef = await import('@alexssmusica/node-printer');
+  //     return (moduleRef as { default?: unknown }).default
+  //       ? ((moduleRef as { default: unknown }).default as { getPrinters; printDirect })
+  //       : (moduleRef as unknown as { getPrinters; printDirect });
+  //   } catch (ex) {
+  //     const detail = ex instanceof Error ? ex.message : String(ex);
+  //     throw new Error(`No se pudo cargar @alexssmusica/node-printer. Detalle: ${detail}`);
+  //   }
+  // }
+  */
 
 }
 
