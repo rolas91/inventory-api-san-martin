@@ -22,10 +22,31 @@ async function runSeed() {
   await queryRunner.startTransaction();
 
   try {
-    // ── Users ──────────────────────────────────────────────────────────────
-    console.log('\n👤 Seeding users...');
     const userRepo = AppDataSource.getRepository(UserEntity);
     const roleRepo = AppDataSource.getRepository(RoleEntity);
+
+    // ── Roles base (misma data que migración CreateRolesPermissions) ─────────
+    // Sin filas en `roles`, el seed de usuarios falla con "Rol no encontrado: admin".
+    console.log('\n🔐 Asegurando roles base...');
+    const rolesBase = [
+      { name: 'admin', description: 'Administrador del sistema' },
+      { name: 'supervisor', description: 'Supervisor operativo' },
+      { name: 'operario', description: 'Operario' },
+    ] as const;
+    for (const r of rolesBase) {
+      let row = await roleRepo.findOne({ where: { name: r.name } });
+      if (!row) {
+        await roleRepo.save(roleRepo.create({ ...r, isActive: true }));
+        console.log(`   ✔ Rol creado: ${r.name}`);
+      } else if (!row.isActive) {
+        row.isActive = true;
+        await roleRepo.save(row);
+        console.log(`   ✔ Rol reactivado: ${r.name}`);
+      }
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────────
+    console.log('\n👤 Seeding users...');
     const usersData = await getUsersSeedData();
 
     for (const data of usersData) {
