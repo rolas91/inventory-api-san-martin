@@ -1,8 +1,9 @@
 import {
   Body, Controller, Get, HttpCode, HttpStatus,
-  Param, ParseIntPipe, Post, Put, UseGuards,
+  Param, ParseIntPipe, Post, Put, Query, UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { parseOptionalFechaQuery } from '../../../../common/utils/fecha-query.util';
 import { PERMISSIONS } from '../../../../common/auth/permissions';
 import { Permissions } from '../../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
@@ -24,9 +25,11 @@ export class RecepcionesController {
 
   @Get()
   @ApiOperation({ summary: 'Todas las recepciones' })
+  @ApiQuery({ name: 'fecha', required: false, example: '2026-04-13', description: 'YYYY-MM-DD' })
   @ApiResponse({ status: 200 })
-  getAll() {
-    return this.repo.findAll();
+  getAll(@Query('fecha') fechaRaw?: string | string[]) {
+    const fecha = parseOptionalFechaQuery(fechaRaw);
+    return this.repo.findAll(fecha);
   }
 
   @Post()

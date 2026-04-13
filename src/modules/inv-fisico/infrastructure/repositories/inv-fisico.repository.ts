@@ -48,8 +48,13 @@ export class InvFisicoRepository implements IInvFisicoRepository {
     });
   }
 
-  async findAllHeaders(): Promise<InvFisicoEncabezadoListItemDto[]> {
-    const headers = await this.invFisicoRepo.find({ order: { createdAt: 'DESC' } });
+  async findAllHeaders(fecha?: string): Promise<InvFisicoEncabezadoListItemDto[]> {
+    const qb = this.invFisicoRepo.createQueryBuilder('h');
+    if (fecha) {
+      qb.andWhere("LEFT(REPLACE(TRIM(h.fecha), '/', '-'), 10) = :fecha", { fecha });
+    }
+    qb.orderBy('h.createdAt', 'DESC');
+    const headers = await qb.getMany();
     const out: InvFisicoEncabezadoListItemDto[] = [];
     for (const h of headers) {
       const detalleCount = await this.detailRepo.count({ where: { invFisicoId: h.id } });
@@ -71,14 +76,17 @@ export class InvFisicoRepository implements IInvFisicoRepository {
     return out;
   }
 
-  async findFlattenedLineas(invFisicoId?: number): Promise<InvFisicoLineaPlanaDto[]> {
+  async findFlattenedLineas(invFisicoId?: number, fecha?: string): Promise<InvFisicoLineaPlanaDto[]> {
     const qb = this.invFisicoRepo
       .createQueryBuilder('h')
       .leftJoinAndSelect('h.details', 'd')
       .orderBy('h.createdAt', 'DESC')
       .addOrderBy('d.id', 'ASC');
     if (invFisicoId != null) {
-      qb.where('h.id = :id', { id: invFisicoId });
+      qb.andWhere('h.id = :id', { id: invFisicoId });
+    }
+    if (fecha) {
+      qb.andWhere("LEFT(REPLACE(TRIM(h.fecha), '/', '-'), 10) = :fecha", { fecha });
     }
     const headers = await qb.getMany();
     const rows: InvFisicoLineaPlanaDto[] = [];

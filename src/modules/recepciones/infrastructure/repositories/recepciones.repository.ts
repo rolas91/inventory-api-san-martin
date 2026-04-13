@@ -43,8 +43,12 @@ export class RecepcionesRepository {
   }
 
   // ── Recepciones ───────────────────────────────────────────────────────────
-  findAll(): Promise<RecepcionEntity[]> {
-    return this.recepcionRepo.find({ order: { createdAt: 'DESC' } });
+  findAll(fecha?: string): Promise<RecepcionEntity[]> {
+    const qb = this.recepcionRepo.createQueryBuilder('r').orderBy('r.createdAt', 'DESC');
+    if (fecha) {
+      qb.andWhere('r.fecha = :fecha', { fecha });
+    }
+    return qb.getMany();
   }
 
   async findById(id: number): Promise<RecepcionEntity> {

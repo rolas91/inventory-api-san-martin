@@ -11,10 +11,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { parseOptionalFechaQuery } from '../../../../common/utils/fecha-query.util';
 import {
   ApiBearerAuth,
   ApiBody,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -67,21 +69,13 @@ export class InvFisicoController {
     await this.deleteAllUseCase.execute();
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Rutas del módulo InvFisico' })
-  routesInfo() {
-    return {
-      encabezados: 'GET /InvFisico/encabezados',
-      lineas: 'GET /InvFisico/lineas?invFisicoId= (opcional)',
-      batch: 'POST /InvFisico/batch',
-    };
-  }
-
   @Get('encabezados')
   @ApiOperation({ summary: 'Listar cabeceras de inventario físico (con conteo de detalles)' })
+  @ApiQuery({ name: 'fecha', required: false, example: '2026-04-13', description: 'YYYY-MM-DD (campo cabecera fecha)' })
   @ApiResponse({ status: 200 })
-  getEncabezados() {
-    return this.invFisicoRepo.findAllHeaders();
+  getEncabezados(@Query('fecha') fechaRaw?: string | string[]) {
+    const fecha = parseOptionalFechaQuery(fechaRaw);
+    return this.invFisicoRepo.findAllHeaders(fecha);
   }
 
   @Get('lineas')
@@ -90,15 +84,30 @@ export class InvFisicoController {
     description:
       'Sin `invFisicoId` devuelve todas las líneas. Con `invFisicoId` solo las de esa cabecera.',
   })
+  @ApiQuery({ name: 'fecha', required: false, example: '2026-04-13', description: 'YYYY-MM-DD (filtra por fecha de cabecera)' })
   @ApiResponse({ status: 200 })
-  getLineas(@Query('invFisicoId') invFisicoIdRaw?: string) {
+  getLineas(
+    @Query('invFisicoId') invFisicoIdRaw?: string,
+    @Query('fecha') fechaRaw?: string | string[],
+  ) {
+    const fecha = parseOptionalFechaQuery(fechaRaw);
     if (invFisicoIdRaw === undefined || invFisicoIdRaw === '') {
-      return this.invFisicoRepo.findFlattenedLineas();
+      return this.invFisicoRepo.findFlattenedLineas(undefined, fecha);
     }
     const id = Number.parseInt(invFisicoIdRaw, 10);
     if (Number.isNaN(id)) {
       throw new BadRequestException('invFisicoId debe ser numérico');
     }
-    return this.invFisicoRepo.findFlattenedLineas(id);
+    return this.invFisicoRepo.findFlattenedLineas(id, fecha);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Rutas del módulo InvFisico' })
+  routesInfo() {
+    return {
+      encabezados: 'GET /InvFisico/encabezados',
+      lineas: 'GET /InvFisico/lineas?invFisicoId= (opcional)',
+      batch: 'POST /InvFisico/batch',
+    };
   }
 }

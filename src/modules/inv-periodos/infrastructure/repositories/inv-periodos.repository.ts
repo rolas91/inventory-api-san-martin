@@ -24,8 +24,13 @@ export class InvPeriodosRepository {
   ) {}
 
   // ── Períodos ──────────────────────────────────────────────────────────────
-  findAllPeriodos(): Promise<InvPeriodoEntity[]> {
-    return this.periodoRepo.find({ order: { createdAt: 'DESC' } });
+  findAllPeriodos(fecha?: string): Promise<InvPeriodoEntity[]> {
+    const qb = this.periodoRepo.createQueryBuilder('p').orderBy('p.createdAt', 'DESC');
+    if (fecha) {
+      // Inventario diario: solo períodos con al menos un conteo en esa fecha.
+      qb.innerJoin(InvConteoEntity, 'c', 'c.periodoId = p.id AND c.fecha = :fecha', { fecha }).distinct(true);
+    }
+    return qb.getMany();
   }
 
   async findPeriodoById(id: number): Promise<InvPeriodoEntity> {
@@ -58,9 +63,9 @@ export class InvPeriodosRepository {
   }
 
   // ── Conteos ───────────────────────────────────────────────────────────────
-  async findConteosByPeriodo(periodoId: number): Promise<object[]> {
+  async findConteosByPeriodo(periodoId: number, fecha?: string): Promise<object[]> {
     const conteos = await this.conteoRepo.find({
-      where: { periodoId },
+      where: fecha ? { periodoId, fecha } : { periodoId },
       order: { numeroConteo: 'ASC' },
     });
 

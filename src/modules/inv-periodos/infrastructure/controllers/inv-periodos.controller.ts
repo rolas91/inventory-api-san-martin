@@ -1,8 +1,9 @@
 import {
   Body, Controller, Get, HttpCode, HttpStatus,
-  Param, ParseIntPipe, Post, Put, UseGuards,
+  Param, ParseIntPipe, Post, Put, Query, UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { parseOptionalFechaQuery } from '../../../../common/utils/fecha-query.util';
 import { PERMISSIONS } from '../../../../common/auth/permissions';
 import { Permissions } from '../../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
@@ -20,9 +21,16 @@ export class InvPeriodosController {
 
   @Get()
   @ApiOperation({ summary: 'Todos los períodos de inventario' })
+  @ApiQuery({
+    name: 'fecha',
+    required: false,
+    example: '2026-04-13',
+    description: 'YYYY-MM-DD: períodos cuyo rango incluye ese día (fechaInicio ≤ fecha ≤ fechaFin o sin cierre)',
+  })
   @ApiResponse({ status: 200 })
-  getAll() {
-    return this.repo.findAllPeriodos();
+  getAll(@Query('fecha') fechaRaw?: string | string[]) {
+    const fecha = parseOptionalFechaQuery(fechaRaw);
+    return this.repo.findAllPeriodos(fecha);
   }
 
   @Post()
@@ -47,9 +55,14 @@ export class InvPeriodosController {
 
   @Get(':periodoId/conteos')
   @ApiOperation({ summary: 'Conteos de un período con totales' })
+  @ApiQuery({ name: 'fecha', required: false, example: '2026-04-13', description: 'YYYY-MM-DD (campo conteo.fecha)' })
   @ApiResponse({ status: 200 })
-  getConteos(@Param('periodoId', ParseIntPipe) periodoId: number) {
-    return this.repo.findConteosByPeriodo(periodoId);
+  getConteos(
+    @Param('periodoId', ParseIntPipe) periodoId: number,
+    @Query('fecha') fechaRaw?: string | string[],
+  ) {
+    const fecha = parseOptionalFechaQuery(fechaRaw);
+    return this.repo.findConteosByPeriodo(periodoId, fecha);
   }
 
   @Post(':periodoId/conteos')
