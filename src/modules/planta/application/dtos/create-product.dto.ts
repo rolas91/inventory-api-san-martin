@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  ArrayUnique, IsArray, IsOptional,
+  ArrayUnique, IsArray, IsBoolean, IsOptional,
   IsString, MaxLength, MinLength,
 } from 'class-validator';
 
@@ -22,6 +22,15 @@ export class CreateProductDto {
   @MinLength(1)
   @MaxLength(100)
   numProducto: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'Si es true, permite registrar destinos en productos_kilos. Si es false/omitido, no registra kilos aunque se envíe `destinos`.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isKg?: boolean;
 
   @ApiPropertyOptional({
     example: ['00', 'NI', 'CR'],

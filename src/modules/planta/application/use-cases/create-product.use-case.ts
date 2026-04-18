@@ -25,10 +25,10 @@ export class CreateProductUseCase {
       numProducto: product.numProducto,
     };
 
-    // 2. Crear registros de kilos por cada destino (si se enviaron)
+    // 2. Crear registros de kilos por cada destino (solo si isKg=true y se enviaron destinos)
     const kilosResponse: ProductKilosResponseDto[] = [];
 
-    if (dto.destinos && dto.destinos.length > 0) {
+    if (dto.isKg === true && dto.destinos && dto.destinos.length > 0) {
       for (const destinoRel of dto.destinos) {
         const kilos = await this.plantaRepository.createProductKilos({
           codProducto: dto.codProduccion,

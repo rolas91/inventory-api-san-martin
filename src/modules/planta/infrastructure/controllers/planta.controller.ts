@@ -72,7 +72,7 @@ export class PlantaController {
     summary: 'Crear producto [admin, supervisor]',
     description:
       'Crea el producto y, opcionalmente, registra sus destinos en productos_kilos. ' +
-      'Envía el campo `destinos` como array de strings para crear los registros de kilos en la misma petición.',
+      'Envía `isKg=true` junto con `destinos` (array de strings) para crear los registros de kilos en la misma petición.',
   })
   @ApiResponse({ status: 201, type: CreateProductFullResponseDto })
   createProduct(@Body() dto: CreateProductDto): Promise<CreateProductFullResponseDto> {
