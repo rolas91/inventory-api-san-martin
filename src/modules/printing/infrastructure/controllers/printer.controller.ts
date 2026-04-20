@@ -80,50 +80,5 @@ export class PrinterController {
   ) {
     return this.printerService.printTicket(file, printerName);
   }
-
-  @Get('_printer-test/list')
-  @ApiOperation({ summary: 'POC: listar impresoras con @alexssmusica/node-printer' })
-  @ApiResponse({ status: 200, schema: { example: [{ name: 'Mi Impresora' }] } })
-  async listPrintersNodePrinterPoc() {
-    return this.printerService.getPrintersNodePrinterPoc();
-  }
-
-  @Post('_printer-test/print-ticket')
-  @HttpCode(HttpStatus.OK)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        if (!file.originalname.toLowerCase().endsWith('.pdf')) {
-          return cb(new BadRequestException('Solo se aceptan archivos .pdf'), false);
-        }
-        cb(null, true);
-      },
-    }),
-  )
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    description: 'POC node-printer: archivo PDF + printerName',
-    schema: {
-      type: 'object',
-      properties: {
-        file: { type: 'string', format: 'binary' },
-        printerName: { type: 'string' },
-      },
-      required: ['file', 'printerName'],
-    },
-  })
-  @ApiOperation({ summary: 'POC: imprimir PDF con @alexssmusica/node-printer' })
-  @ApiResponse({
-    status: 200,
-    schema: { example: { message: 'POC node-printer: PDF enviado a imprimir correctamente.' } },
-  })
-  async printTicketNodePrinterPoc(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('printerName') printerName: string,
-  ) {
-    return this.printerService.printTicketNodePrinterPoc(file, printerName);
-  }
 }
 

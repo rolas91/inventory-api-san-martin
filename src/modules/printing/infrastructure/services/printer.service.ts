@@ -5,21 +5,18 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
+import { getPrinters as getSystemPrinters, print as printPdf } from 'pdf-to-printer';
 
 @Injectable()
 export class PrinterService {
   private readonly logger = new Logger(PrinterService.name);
 
   async getPrinters(): Promise<{ name: string }[]> {
-    const printerNames = await this.getPrinterNames();
+    const printerNames = await this.getInstalledPrinterNames();
     if (printerNames.length === 0) {
       throw new NotFoundException('No se encontraron impresoras instaladas.');
     }
@@ -53,7 +50,7 @@ export class PrinterService {
       throw new BadRequestException('No se ingreso nombre de impresora.');
     }
 
-    const printerNames = await this.getPrinterNames();
+    const printerNames = await this.getInstalledPrinterNames();
     const resolvedPrinterName = this.resolvePrinterName(printerName, printerNames);
     if (!resolvedPrinterName) {
       this.logger.warn(
@@ -66,7 +63,11 @@ export class PrinterService {
     await fs.promises.writeFile(tempFilePath, file.buffer);
 
     try {
-      await this.printWithSumatra(tempFilePath, resolvedPrinterName);
+      await printPdf(tempFilePath, {
+        printer: resolvedPrinterName,
+        scale: 'fit',
+        silent: true,
+      });
 
       return { message: 'PDF enviado a imprimir correctamente.' };
     } catch (ex) {
@@ -82,48 +83,12 @@ export class PrinterService {
     }
   }
 
-  async getPrintersNodePrinterPoc(): Promise<{ name: string }[]> {
-    // @alexssmusica/node-printer deshabilitado (incompatibilidad / build nativo). Misma fuente que GET printer/list.
-    return this.getPrinters();
-  }
-
-  async printTicketNodePrinterPoc(
-    file: Express.Multer.File,
-    printerName: string,
-  ): Promise<{ message: string }> {
-    // @alexssmusica/node-printer deshabilitado (import dinámico y printDirect). Misma lógica que POST printer/print-ticket.
-    //
-    // Código anterior (referencia, no ejecutar):
-    // const printerModule = await this.getNodePrinterModule();
-    // printerModule.printDirect({ data: file.buffer, printer: resolvedPrinterName, type: 'PDF', ... });
-    const result = await this.printTicket(file, printerName);
-    return {
-      message: `${result.message} (POC: sin node-printer; impresión vía flujo estándar.)`,
-    };
-  }
-
-  private async getPrinterNames(): Promise<string[]> {
+  private async getInstalledPrinterNames(): Promise<string[]> {
     try {
-      const { stdout } = await execFileAsync(
-        'powershell',
-        [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-Command',
-          'Get-CimInstance -ClassName Win32_Printer | Select-Object -ExpandProperty Name',
-        ],
-        {
-          windowsHide: true,
-          timeout: 120000,
-          maxBuffer: 1024 * 1024,
-        },
-      );
-
-      return stdout
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const printers = await getSystemPrinters();
+      return printers
+        .map((p) => p.name?.trim())
+        .filter((name): name is string => Boolean(name));
     } catch (ex) {
       const detail = ex instanceof Error ? ex.message : String(ex);
       this.logger.error(`Error al listar impresoras: ${detail}`);
@@ -154,41 +119,6 @@ export class PrinterService {
 
     return null;
   }
-
-  private async printWithSumatra(pdfPath: string, printer: string): Promise<void> {
-    const sumatraExe = path.join(
-      process.cwd(),
-      'node_modules',
-      'pdf-to-printer',
-      'dist',
-      'SumatraPDF-3.4.6-32.exe',
-    );
-
-    await execFileAsync(
-      sumatraExe,
-      ['-print-to', printer, '-silent', '-print-settings', 'fit', pdfPath],
-      {
-        windowsHide: true,
-        timeout: 120000,
-        maxBuffer: 1024 * 1024,
-      },
-    );
-  }
-
-  /*
-  // ── getNodePrinterModule — DESHABILITADO: @alexssmusica/node-printer (compatibilidad / addon nativo)
-  // private async getNodePrinterModule(): Promise<{ ... }> {
-  //   try {
-  //     const moduleRef = await import('@alexssmusica/node-printer');
-  //     return (moduleRef as { default?: unknown }).default
-  //       ? ((moduleRef as { default: unknown }).default as { getPrinters; printDirect })
-  //       : (moduleRef as unknown as { getPrinters; printDirect });
-  //   } catch (ex) {
-  //     const detail = ex instanceof Error ? ex.message : String(ex);
-  //     throw new Error(`No se pudo cargar @alexssmusica/node-printer. Detalle: ${detail}`);
-  //   }
-  // }
-  */
 
 }
 
