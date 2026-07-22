@@ -19,6 +19,9 @@ export class RecepcionDetalleEntity {
   @Column({ name: 'nomb_producto', length: 200 })
   nombProducto: string;
 
+  @Column({ name: 'ubicacion_id', type: 'integer', nullable: true })
+  ubicacionId: number | null;
+
   @Column({ name: 'cantidad_recibida', default: 0 })
   cantidadRecibida: number;
 
@@ -33,6 +36,9 @@ export class RecepcionDetalleEntity {
 
   @Column({ name: 'consecutivos_caja', length: 500, default: '' })
   consecutivosCaja: string;
+
+  @Column({ name: 'cod_user', length: 100, default: '' })
+  codUser: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

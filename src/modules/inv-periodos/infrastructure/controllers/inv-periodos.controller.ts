@@ -6,8 +6,10 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { parseOptionalFechaQuery } from '../../../../common/utils/fecha-query.util';
 import { PERMISSIONS } from '../../../../common/auth/permissions';
 import { Permissions } from '../../../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
+import type { JwtPayload } from '../../../auth/domain/interfaces/jwt-payload.interface';
 import { InvPeriodosRepository } from '../repositories/inv-periodos.repository';
 import { CreateInvPeriodoDto, UpdatePeriodoEstadoDto } from '../../application/dtos/inv-periodo.dto';
 import { CreateInvConteoDto } from '../../application/dtos/inv-conteo.dto';
@@ -38,8 +40,8 @@ export class InvPeriodosController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear período [admin, supervisor]' })
   @ApiResponse({ status: 201 })
-  create(@Body() dto: CreateInvPeriodoDto) {
-    return this.repo.createPeriodo(dto);
+  create(@Body() dto: CreateInvPeriodoDto, @CurrentUser() user: JwtPayload) {
+    return this.repo.createPeriodo(dto, user);
   }
 
   @Put(':id/estado')
@@ -73,7 +75,8 @@ export class InvPeriodosController {
   createConteo(
     @Param('periodoId', ParseIntPipe) periodoId: number,
     @Body() dto: CreateInvConteoDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.repo.createConteo(periodoId, dto);
+    return this.repo.createConteo(periodoId, dto, user);
   }
 }

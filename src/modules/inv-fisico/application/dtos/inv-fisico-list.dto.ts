@@ -26,7 +26,7 @@ export class InvFisicoEncabezadoListItemDto {
   @ApiProperty()
   bultos: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Usuario del token que creó la cabecera' })
   codUser: string;
 
   @ApiProperty()
@@ -118,6 +118,9 @@ export class InvFisicoLineaPlanaDto {
 
   @ApiPropertyOptional()
   secuencia: number | null;
+
+  @ApiPropertyOptional({ description: 'Usuario del token que creó la línea escaneada' })
+  detalleCodUser: string | null;
 
   @ApiPropertyOptional()
   detalleCreatedAt: string | null;

@@ -37,6 +37,9 @@ export class InvConteoDetalleEntity {
   @Column({ name: 'consecutivos_caja', length: 500, default: '' })
   consecutivosCaja: string;
 
+  @Column({ name: 'cod_user', length: 100, default: '' })
+  codUser: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

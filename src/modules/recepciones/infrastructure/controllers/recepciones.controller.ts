@@ -6,8 +6,10 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { parseOptionalFechaQuery } from '../../../../common/utils/fecha-query.util';
 import { PERMISSIONS } from '../../../../common/auth/permissions';
 import { Permissions } from '../../../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
+import type { JwtPayload } from '../../../auth/domain/interfaces/jwt-payload.interface';
 import { RecepcionesRepository } from '../repositories/recepciones.repository';
 import {
   CreateRecepcionDto,
@@ -37,8 +39,8 @@ export class RecepcionesController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear recepción [admin, supervisor] — numero generado automáticamente' })
   @ApiResponse({ status: 201 })
-  create(@Body() dto: CreateRecepcionDto) {
-    return this.repo.create(dto);
+  create(@Body() dto: CreateRecepcionDto, @CurrentUser() user: JwtPayload) {
+    return this.repo.create(dto, user);
   }
 
   @Put(':id/estado')
@@ -67,8 +69,9 @@ export class RecepcionesController {
   batchDetalle(
     @Param('recepcionId', ParseIntPipe) recepcionId: number,
     @Body() dto: BatchRecepcionDetalleDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.repo.batchInsertDetalle(recepcionId, dto.items);
+    return this.repo.batchInsertDetalle(recepcionId, dto.items, user);
   }
 
   @Get(':recepcionId/resumen')
@@ -108,7 +111,7 @@ export class RecepcionesController {
   @ApiResponse({ status: 400, description: 'Payload inválido' })
   @ApiResponse({ status: 401, description: 'No autenticado' })
   @ApiResponse({ status: 403, description: 'Sin permisos' })
-  sincronizarCompleta(@Body() dto: SincronizarCompletaDto) {
-    return this.repo.sincronizarCompleta(dto);
+  sincronizarCompleta(@Body() dto: SincronizarCompletaDto, @CurrentUser() user: JwtPayload) {
+    return this.repo.sincronizarCompleta(dto, user);
   }
 }

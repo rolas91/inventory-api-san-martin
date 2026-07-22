@@ -5,8 +5,10 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PERMISSIONS } from '../../../../common/auth/permissions';
 import { Permissions } from '../../../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../common/guards/roles.guard';
+import type { JwtPayload } from '../../../auth/domain/interfaces/jwt-payload.interface';
 import { InvPeriodosRepository } from '../repositories/inv-periodos.repository';
 import { UpdateConteoEstadoDto, BatchInvConteoDetalleDto } from '../../application/dtos/inv-conteo.dto';
 import { SincronizarCompletoDto } from '../../application/dtos/sincronizar-completo.dto';
@@ -44,8 +46,9 @@ export class InvConteosController {
   batchDetalle(
     @Param('conteoId', ParseIntPipe) conteoId: number,
     @Body() dto: BatchInvConteoDetalleDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.repo.batchInsertDetalle(conteoId, dto.items);
+    return this.repo.batchInsertDetalle(conteoId, dto.items, user);
   }
 
   /**
@@ -78,7 +81,7 @@ export class InvConteosController {
   @ApiResponse({ status: 400, description: 'Payload inválido' })
   @ApiResponse({ status: 401, description: 'No autenticado' })
   @ApiResponse({ status: 403, description: 'Sin permisos' })
-  sincronizarCompleto(@Body() dto: SincronizarCompletoDto) {
-    return this.repo.sincronizarCompleto(dto);
+  sincronizarCompleto(@Body() dto: SincronizarCompletoDto, @CurrentUser() user: JwtPayload) {
+    return this.repo.sincronizarCompleto(dto, user);
   }
 }

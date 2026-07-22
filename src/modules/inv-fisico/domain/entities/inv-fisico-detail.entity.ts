@@ -59,6 +59,9 @@ export class InvFisicoDetailEntity {
   @Column({ name: 'secuencia', nullable: true })
   secuencia: number;
 
+  @Column({ name: 'cod_user', length: 100, default: '' })
+  codUser: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

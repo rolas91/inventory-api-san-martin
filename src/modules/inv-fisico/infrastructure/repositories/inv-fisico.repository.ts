@@ -122,6 +122,7 @@ export class InvFisicoRepository implements IInvFisicoRepository {
           codDestino: null,
           cantPiezas: null,
           secuencia: null,
+          detalleCodUser: null,
           detalleCreatedAt: null,
         });
       } else {
@@ -142,6 +143,7 @@ export class InvFisicoRepository implements IInvFisicoRepository {
             codDestino: d.codDestino ?? null,
             cantPiezas: d.cantPiezas ?? null,
             secuencia: d.secuencia ?? null,
+            detalleCodUser: d.codUser ?? null,
             detalleCreatedAt: d.createdAt.toISOString(),
           });
         }

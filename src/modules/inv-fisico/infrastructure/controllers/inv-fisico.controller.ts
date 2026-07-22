@@ -56,9 +56,9 @@ export class InvFisicoController {
   async batch(
     @Body(new ParseArrayPipe({ items: InvFisicoItemDto }))
     items: InvFisicoItemDto[],
-    @CurrentUser() _user: JwtPayload,
+    @CurrentUser() user: JwtPayload,
   ): Promise<{ success: boolean; count: number }> {
-    return this.batchUseCase.execute(items);
+    return this.batchUseCase.execute(items, user);
   }
 
   @Delete('delete-all')

@@ -9,6 +9,11 @@ import type {
   SincronizarCompletaDto,
   SincronizarCompletaResult,
 } from '../../application/dtos/sincronizar-completa.dto';
+import type { JwtPayload } from '../../../auth/domain/interfaces/jwt-payload.interface';
+
+function userCode(user: JwtPayload): string {
+  return user.codigoUser;
+}
 
 @Injectable()
 export class RecepcionesRepository {
@@ -57,8 +62,9 @@ export class RecepcionesRepository {
     return r;
   }
 
-  async create(dto: CreateRecepcionDto): Promise<RecepcionEntity> {
+  async create(dto: CreateRecepcionDto, user?: JwtPayload): Promise<RecepcionEntity> {
     const numero = await this.generarNumero(dto.fecha);
+    const responsable = user ? userCode(user) : dto.responsable;
     return this.recepcionRepo.save(
       this.recepcionRepo.create({
         numero,
@@ -68,7 +74,7 @@ export class RecepcionesRepository {
         fecha: dto.fecha,
         estado: 'borrador',
         observaciones: dto.observaciones ?? null,
-        responsable: dto.responsable,
+        responsable,
       }),
     );
   }
@@ -96,6 +102,7 @@ export class RecepcionesRepository {
   async batchInsertDetalle(
     recepcionId: number,
     items: RecepcionDetalleItemDto[],
+    user?: JwtPayload,
   ): Promise<{ inserted: number }> {
     const r = await this.findById(recepcionId);
     if (r.estado !== 'borrador') {
@@ -104,7 +111,12 @@ export class RecepcionesRepository {
       );
     }
     const entities = items.map((item) =>
-      this.detalleRepo.create({ ...item, recepcionId }),
+      this.detalleRepo.create({
+        ...item,
+        recepcionId,
+        ubicacionId: item.ubicacionId ?? null,
+        codUser: user ? userCode(user) : '',
+      }),
     );
     await this.detalleRepo.save(entities);
     return { inserted: entities.length };
@@ -139,7 +151,8 @@ export class RecepcionesRepository {
    *  - Si YA existe → se actualiza el estado y se reemplazan los detalles
    *    (delete + re-insert dentro de la misma transacción).
    */
-  async sincronizarCompleta(dto: SincronizarCompletaDto): Promise<SincronizarCompletaResult> {
+  async sincronizarCompleta(dto: SincronizarCompletaDto, user: JwtPayload): Promise<SincronizarCompletaResult> {
+    const codUser = userCode(user);
     return this.dataSource.transaction(async (em) => {
       const recepcionRepo = em.getRepository(RecepcionEntity);
       const detalleRepo   = em.getRepository(RecepcionDetalleEntity);
@@ -165,7 +178,7 @@ export class RecepcionesRepository {
             fecha:         r.fecha,
             estado:        r.estado,
             observaciones: r.observaciones ?? null,
-            responsable:   r.responsable,
+            responsable:   codUser,
           }),
         );
 
@@ -176,11 +189,13 @@ export class RecepcionesRepository {
               recepcionId:      recepcion!.id,
               codProducto:      d.codProducto,
               nombProducto:     d.nombProducto,
+              ubicacionId:      d.ubicacionId ?? null,
               cantidadRecibida: d.cantidadRecibida,
               pesoKilos:        d.pesoKilos,
               pesoLibras:       d.pesoLibras,
               fechaScan:        d.fechaScan.substring(0, 10),
               consecutivosCaja: d.consecutivosCaja ?? '',
+              codUser,
             }),
           );
           await detalleRepo.save(entities);
@@ -190,8 +205,11 @@ export class RecepcionesRepository {
         const permitidos = TRANSICIONES[recepcion.estado] ?? [];
         if (r.estado !== recepcion.estado && permitidos.includes(r.estado)) {
           recepcion.estado = r.estado;
-          recepcion = await recepcionRepo.save(recepcion);
         }
+        if (recepcion.responsable !== codUser) {
+          recepcion.responsable = codUser;
+        }
+        recepcion = await recepcionRepo.save(recepcion);
 
         // Reemplazar detalles: delete + re-insert (idempotente ante reintento)
         await detalleRepo.delete({ recepcionId: recepcion.id });
@@ -201,11 +219,13 @@ export class RecepcionesRepository {
               recepcionId:      recepcion!.id,
               codProducto:      d.codProducto,
               nombProducto:     d.nombProducto,
+              ubicacionId:      d.ubicacionId ?? null,
               cantidadRecibida: d.cantidadRecibida,
               pesoKilos:        d.pesoKilos,
               pesoLibras:       d.pesoLibras,
               fechaScan:        d.fechaScan.substring(0, 10),
               consecutivosCaja: d.consecutivosCaja ?? '',
+              codUser,
             }),
           );
           await detalleRepo.save(entities);

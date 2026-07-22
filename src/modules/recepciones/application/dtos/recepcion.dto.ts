@@ -55,6 +55,10 @@ export class RecepcionDetalleItemDto {
   @IsString() @IsNotEmpty() @MaxLength(200)
   nombProducto: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  @IsInt() @IsPositive() @IsOptional()
+  ubicacionId?: number | null;
+
   @ApiProperty({ example: 10 })
   @IsInt() @IsPositive()
   cantidadRecibida: number;

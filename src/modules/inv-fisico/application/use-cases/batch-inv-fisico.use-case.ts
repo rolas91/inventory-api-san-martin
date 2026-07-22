@@ -3,12 +3,14 @@ import { DeepPartial } from 'typeorm';
 import { InvFisicoRepository } from '../../infrastructure/repositories/inv-fisico.repository';
 import { InvFisicoItemDto } from '../dtos/inv-fisico-batch.dto';
 import { InvFisicoEntity } from '../../domain/entities/inv-fisico.entity';
+import type { JwtPayload } from '../../../auth/domain/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class BatchInvFisicoUseCase {
   constructor(private readonly invFisicoRepository: InvFisicoRepository) {}
 
-  async execute(items: InvFisicoItemDto[]): Promise<{ success: boolean; count: number }> {
+  async execute(items: InvFisicoItemDto[], user: JwtPayload): Promise<{ success: boolean; count: number }> {
+    const codUser = user.codigoUser;
     const entities: DeepPartial<InvFisicoEntity>[] = items.map((item) => ({
       consecutivo:  item.consecutivo,
       fecha:        item.fecha,
@@ -17,7 +19,7 @@ export class BatchInvFisicoUseCase {
       pesoKilos:    item.peso_kilos,
       pesoLibras:   item.peso_libras,
       bultos:       item.bultos,
-      codUser:      item.cod_user,
+      codUser,
       details: (item.details ?? []).map((d) => ({
         numeroProducto:  d.numeroProducto,
         codProducto:     d.codProducto,
@@ -32,6 +34,7 @@ export class BatchInvFisicoUseCase {
         codDestino:      d.codDestino,
         cantPiezas:      d.cantPiezas,
         secuencia:       d.secuencia,
+        codUser,
       })),
     }));
 

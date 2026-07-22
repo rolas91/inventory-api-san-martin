@@ -56,6 +56,10 @@ export class SincDetalleRecepcionItemDto {
   @IsString() @IsNotEmpty() @MaxLength(200)
   nombProducto: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  @IsInt() @IsOptional()
+  ubicacionId?: number | null;
+
   @ApiProperty({ example: 10 })
   @IsInt()
   cantidadRecibida: number;

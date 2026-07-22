@@ -10,6 +10,11 @@ import type {
   SincronizarCompletoDto,
   SincronizarCompletoResult,
 } from '../../application/dtos/sincronizar-completo.dto';
+import type { JwtPayload } from '../../../auth/domain/interfaces/jwt-payload.interface';
+
+function userCode(user: JwtPayload): string {
+  return user.codigoUser;
+}
 
 @Injectable()
 export class InvPeriodosRepository {
@@ -39,7 +44,8 @@ export class InvPeriodosRepository {
     return p;
   }
 
-  createPeriodo(dto: CreateInvPeriodoDto): Promise<InvPeriodoEntity> {
+  createPeriodo(dto: CreateInvPeriodoDto, user?: JwtPayload): Promise<InvPeriodoEntity> {
+    const responsable = user ? userCode(user) : dto.responsable;
     return this.periodoRepo.save(
       this.periodoRepo.create({
         nombre: dto.nombre,
@@ -48,7 +54,7 @@ export class InvPeriodosRepository {
         fechaInicio: dto.fechaInicio,
         fechaFin: null,
         estado: 'abierto',
-        responsable: dto.responsable,
+        responsable,
       }),
     );
   }
@@ -98,7 +104,7 @@ export class InvPeriodosRepository {
     return c;
   }
 
-  async createConteo(periodoId: number, dto: CreateInvConteoDto): Promise<InvConteoEntity> {
+  async createConteo(periodoId: number, dto: CreateInvConteoDto, user?: JwtPayload): Promise<InvConteoEntity> {
     const periodo = await this.findPeriodoById(periodoId);
     if (periodo.estado !== 'abierto') {
       throw new BadRequestException(
@@ -117,7 +123,7 @@ export class InvPeriodosRepository {
       this.conteoRepo.create({
         periodoId,
         numeroConteo,
-        responsable: dto.responsable,
+        responsable: user ? userCode(user) : dto.responsable,
         estado: 'en_progreso',
         fecha: dto.fecha,
       }),
@@ -141,6 +147,7 @@ export class InvPeriodosRepository {
   async batchInsertDetalle(
     conteoId: number,
     items: InvConteoDetalleItemDto[],
+    user?: JwtPayload,
   ): Promise<{ inserted: number }> {
     const conteo = await this.findConteoById(conteoId);
     if (conteo.estado !== 'en_progreso') {
@@ -149,7 +156,12 @@ export class InvPeriodosRepository {
       );
     }
     const entities = items.map((item) =>
-      this.detalleRepo.create({ ...item, conteoId, ubicacionId: item.ubicacionId ?? null }),
+      this.detalleRepo.create({
+        ...item,
+        conteoId,
+        ubicacionId: item.ubicacionId ?? null,
+        codUser: user ? userCode(user) : '',
+      }),
     );
     await this.detalleRepo.save(entities);
     return { inserted: entities.length };
@@ -163,7 +175,8 @@ export class InvPeriodosRepository {
    * conteo, se reutiliza y NO se duplican detalles.
    * Todo ocurre en una sola transacción.
    */
-  async sincronizarCompleto(dto: SincronizarCompletoDto): Promise<SincronizarCompletoResult> {
+  async sincronizarCompleto(dto: SincronizarCompletoDto, user: JwtPayload): Promise<SincronizarCompletoResult> {
+    const codUser = userCode(user);
     return this.dataSource.transaction(async (em) => {
       const periodoRepo  = em.getRepository(InvPeriodoEntity);
       const conteoRepo   = em.getRepository(InvConteoEntity);
@@ -174,7 +187,7 @@ export class InvPeriodosRepository {
         where: {
           nombre:      dto.periodo.nombre,
           fechaInicio: dto.periodo.fechaInicio,
-          responsable: dto.periodo.responsable,
+          responsable: codUser,
           tipo:        dto.periodo.tipo,
         },
       });
@@ -188,14 +201,15 @@ export class InvPeriodosRepository {
             fechaInicio: dto.periodo.fechaInicio,
             fechaFin:    dto.periodo.fechaFin ?? null,
             estado:      dto.periodo.estado,
-            responsable: dto.periodo.responsable,
+            responsable: codUser,
           }),
         );
       } else {
         // Actualiza estado si avanzó
-        if (dto.periodo.estado !== periodo.estado) {
+        if (dto.periodo.estado !== periodo.estado || periodo.responsable !== codUser) {
           periodo.estado   = dto.periodo.estado;
           periodo.fechaFin = dto.periodo.fechaFin ?? periodo.fechaFin;
+          periodo.responsable = codUser;
           periodo = await periodoRepo.save(periodo);
         }
       }
@@ -212,7 +226,7 @@ export class InvPeriodosRepository {
           conteoRepo.create({
             periodoId:    periodo.id,
             numeroConteo: dto.conteo.numeroConteo,
-            responsable:  dto.conteo.responsable,
+            responsable:  codUser,
             estado:       dto.conteo.estado,
             fecha:        dto.conteo.fecha,
           }),
@@ -231,6 +245,7 @@ export class InvPeriodosRepository {
               bultos:           d.bultos,
               fechaScan:        d.fechaScan.substring(0, 10),
               consecutivosCaja: d.consecutivosCaja ?? '',
+              codUser,
             }),
           );
           await detalleRepo.save(detalleEntities);
@@ -238,8 +253,9 @@ export class InvPeriodosRepository {
         }
       } else {
         // Conteo existente: actualizar estado si cambió
-        if (conteo.estado !== dto.conteo.estado) {
+        if (conteo.estado !== dto.conteo.estado || conteo.responsable !== codUser) {
           conteo.estado = dto.conteo.estado;
+          conteo.responsable = codUser;
           await conteoRepo.save(conteo);
         }
         // Detalles: verificar si ya hay registros (evitar duplicados)
@@ -256,6 +272,7 @@ export class InvPeriodosRepository {
               bultos:           d.bultos,
               fechaScan:        d.fechaScan.substring(0, 10),
               consecutivosCaja: d.consecutivosCaja ?? '',
+              codUser,
             }),
           );
           await detalleRepo.save(detalleEntities);
