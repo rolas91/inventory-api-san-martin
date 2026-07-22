@@ -11,6 +11,8 @@ import { BodegasModule } from './modules/bodegas/bodegas.module';
 import { InvPeriodosModule } from './modules/inv-periodos/inv-periodos.module';
 import { RecepcionesModule } from './modules/recepciones/recepciones.module';
 import { PrintingModule } from './modules/printing/printing.module';
+import { ScanEventsModule } from './modules/scan-events/scan-events.module';
+import { DispatchesModule } from './modules/dispatches/dispatches.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { PrintingModule } from './modules/printing/printing.module';
     InvPeriodosModule,
     RecepcionesModule,
     PrintingModule,
+    ScanEventsModule,
+    DispatchesModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

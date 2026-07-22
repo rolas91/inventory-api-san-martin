@@ -36,6 +36,9 @@ export const PERMISSIONS = {
   RECEPCIONES_BATCH_DETALLE: 'recepciones:batch_detalle',
   RECEPCIONES_SYNC_COMPLETA: 'recepciones:sync_completa',
 
+  DISPATCHES_CREATE: 'dispatches:create',
+  DISPATCHES_UPDATE_STATUS: 'dispatches:update_status',
+
   // Planta
   PLANTA_CREATE_PRODUCT: 'planta:create_product',
   PLANTA_IMPORT_PRODUCTS: 'planta:import_products',
